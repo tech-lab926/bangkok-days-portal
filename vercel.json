@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/v1/admin/auto-news/cron",
+      "schedule": "0 23 * * *"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+/* Public site only — minimal Tailwind base + utilities, NO shadcn/admin CSS */
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}

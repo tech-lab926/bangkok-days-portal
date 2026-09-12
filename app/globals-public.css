@@ -1,0 +1,31 @@
+/* Bangkok Days Public Site Design Tokens */
+.public-site {
+  --bd-blue: #004098;
+  --bd-blue-dark: #003080;
+  --bd-blue-light: #e8f0fe;
+  --bd-yellow: #ffc107;
+  --bd-yellow-hover: #ffb300;
+  --bd-bg-gray: #f5f7fa;
+  --bd-bg-white: #ffffff;
+  --bd-text-dark: #333333;
+  --bd-text-medium: #666666;
+  --bd-text-light: #999999;
+  --bd-border: #e0e0e0;
+  --bd-radius: 8px;
+  --bd-radius-lg: 12px;
+  --bd-radius-xl: 16px;
+  --bd-max-width: 1200px;
+  --bd-font:
+    var(--font-noto-sans-jp), "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+    Meiryo, sans-serif;
+
+  font-family: var(--bd-font);
+  color: var(--bd-text-dark);
+  background: var(--bd-bg-white);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

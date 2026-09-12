@@ -1,0 +1,25 @@
+export const PERMISSION_RESOURCES = [
+  "stores",
+  "articles",
+  "areas",
+  "categories",
+  "scenes",
+  "tags",
+  "owners",
+  "revenue",
+  "pricing_plans",
+  "inquiries",
+  "featured",
+  "curated_lists",
+  "today_events",
+  "jobs",
+  "auto_news",
+  "media",
+  "community",
+  "qa",
+  "settings",
+  "admin_users",
+  "users",
+] as const;
+
+export const SYSTEM_ROLE_CODES = ["SUPER_ADMIN", "ADMIN", "EDITOR"] as const;

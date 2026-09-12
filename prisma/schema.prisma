@@ -1,0 +1,775 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+}
+
+enum PlaceType {
+  NORMAL
+  NIGHT
+}
+
+enum BillingStatus {
+  UNPAID
+  INVOICED
+  PAID
+}
+
+enum InquiryType {
+  STORE_LISTING
+  GENERAL
+}
+
+enum InquiryStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ArticleType {
+  NEWS
+  GUIDE
+}
+
+enum ImpactLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum NewsCategory {
+  ALL
+  LIFE
+  TRANSPORT
+  BUSINESS
+  NIGHT
+  EVENT
+  SYSTEM
+}
+
+// ─── Admin Users ───
+
+model AdminUser {
+  id            String      @id @default(uuid())
+  loginId       String?     @unique
+  email         String      @unique
+  password      String
+  name          String
+  role          Role        @default(EDITOR)
+  customRole    String?     // FK to CustomRole.code — overrides enum role for permission lookups
+  customRoleRef CustomRole? @relation(fields: [customRole], references: [code])
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("admin_users")
+}
+
+// ─── Users (Public) ───
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  fullName          String
+  nickname          String?   @unique
+  avatarUrl         String?
+  bio               String?   @db.VarChar(140)
+  emailVerified     Boolean   @default(false)
+  verificationToken String?   @unique
+  tokenExpiresAt    DateTime?
+  active            Boolean   @default(true)
+  frozen            Boolean   @default(false)
+  deletedAt         DateTime?
+  lastLoginAt       DateTime?
+  loginFailCount    Int       @default(0)
+  loginLockedUntil  DateTime?
+  totalLikesReceived Int      @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  communityPosts   CommunityPost[]
+  communityReplies CommunityReply[]
+  qaQuestions      QaQuestion[]
+  qaAnswers        QaAnswer[]
+  qaLikes          QaLike[]
+  qaWatches        QaWatch[]
+  qaReports        QaReport[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ─── Areas ───
+
+model Area {
+  id                 String            @id @default(uuid())
+  slug               String            @unique
+  displayOrder       Int               @default(0)
+  enabled            Boolean           @default(true)
+  imageUrl           String?
+  description        String?           @db.Text
+  seoTitle           String?
+  seoDescription     String?
+  googleMapsUrl      String?
+  btsStation         String?
+  ratingJapanese     Int               @default(0)
+  ratingNightlife    Int               @default(0)
+  ratingBeginner     Int               @default(0)
+  ratingNightCaution Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  translations       AreaTranslation[]
+  places             Place[]
+
+  @@map("areas")
+}
+
+model AreaTranslation {
+  id     String @id @default(uuid())
+  areaId String
+  locale String
+  name   String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, locale])
+  @@map("area_translations")
+}
+
+// ─── Categories ───
+
+model Category {
+  id             String                @id @default(uuid())
+  slug           String                @unique
+  displayOrder   Int                   @default(0)
+  enabled        Boolean               @default(true)
+  description    String?               @db.Text
+  seoTitle       String?
+  seoDescription String?
+  imageUrl       String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  translations   CategoryTranslation[]
+  places         PlaceCategory[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id         String   @id @default(uuid())
+  categoryId String
+  locale     String
+  name       String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@map("category_translations")
+}
+
+// ─── Scenes ───
+
+model Scene {
+  id           String             @id @default(uuid())
+  slug         String?            @unique
+  icon         String?
+  displayOrder Int                @default(0)
+  enabled      Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  translations SceneTranslation[]
+  places       PlaceScene[]
+
+  @@map("scenes")
+}
+
+model SceneTranslation {
+  id      String @id @default(uuid())
+  sceneId String
+  locale  String
+  name    String
+  scene   Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, locale])
+  @@map("scene_translations")
+}
+
+// ─── Tags ───
+
+model Tag {
+  id           String           @id @default(uuid())
+  slug         String           @unique
+  displayOrder Int              @default(0)
+  category     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  translations TagTranslation[]
+  placeTags    PlaceTag[]
+  articleTags  ArticleTag[]
+
+  @@map("tags")
+}
+
+model TagTranslation {
+  id     String @id @default(uuid())
+  tagId  String
+  locale String
+  name   String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@map("tag_translations")
+}
+
+// ─── Owners (Companies) ───
+
+model Owner {
+  id          String   @id @default(uuid())
+  companyName String
+  contactName String
+  phone       String
+  email       String
+  memo        String?  @db.Text
+  active      Boolean  @default(true)
+  planId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  plan     PricingPlan?     @relation(fields: [planId], references: [id])
+  places   Place[]
+  billings MonthlyBilling[]
+
+  @@map("owners")
+}
+
+// ─── Pricing Plans ───
+
+model PricingPlan {
+  id              String   @id @default(uuid())
+  name            String
+  monthlyPrice    Int
+  description     String?  @db.Text
+  enabled         Boolean  @default(true)
+  displayPriority Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owners        Owner[]
+  storeBillings StoreBilling[]
+
+  @@map("pricing_plans")
+}
+
+// ─── Places (Stores) ───
+
+model Place {
+  id             String    @id @default(uuid())
+  slug           String    @unique
+  type           PlaceType @default(NORMAL)
+  isVisible      Boolean   @default(false)
+  areaId         String?
+  ownerId        String?
+  phone          String?
+  address        String?
+  openingHours   String?   @db.Text
+  price          String?   @db.Text
+  menu           String?   @db.Text
+  nearestStation String?
+  regularHoliday String?
+  languages      String[]
+  website        String?
+  snsInstagram   String?
+  snsX           String?
+  snsFacebook    String?
+  snsLine        String?
+  snsTiktok      String?
+  showSpotlight  Boolean   @default(false)
+  showNightNavi  Boolean   @default(false)
+  displayPriority Int      @default(0)
+  googleMapsUrl  String?
+  googleRating   Float?
+  googleReviewCount Int?
+  priceFrom      Int?
+  priceTo        Int?
+  seoTitle       String?
+  seoDescription String?
+  h1Tag          String?
+  noindex        Boolean   @default(false)
+  viewCount      Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  area         Area?              @relation(fields: [areaId], references: [id])
+  owner        Owner?             @relation(fields: [ownerId], references: [id])
+  translations PlaceTranslation[]
+  images       PlaceImage[]
+  tags         PlaceTag[]
+  categories   PlaceCategory[]
+  scenes       PlaceScene[]
+  storeBillings StoreBilling[]
+  jobs         Job[]
+  curatedLists CuratedListPlace[]
+
+  @@index([type, isVisible])
+  @@index([areaId])
+  @@index([ownerId])
+  @@map("places")
+}
+
+model PlaceTranslation {
+  id          String @id @default(uuid())
+  placeId     String
+  locale      String
+  name        String
+  description String @db.Text
+  place       Place  @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, locale])
+  @@map("place_translations")
+}
+
+model PlaceImage {
+  id        String   @id @default(uuid())
+  placeId   String
+  url       String
+  alt       String?
+  isMain    Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@map("place_images")
+}
+
+model PlaceTag {
+  placeId String
+  tagId   String
+  place   Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([placeId, tagId])
+  @@map("place_tags")
+}
+
+model PlaceCategory {
+  placeId    String
+  categoryId String
+  place      Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([placeId, categoryId])
+  @@map("place_categories")
+}
+
+model PlaceScene {
+  placeId String
+  sceneId String
+  place   Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  scene   Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@id([placeId, sceneId])
+  @@map("place_scenes")
+}
+
+// ─── Revenue / Billing ───
+
+model MonthlyBilling {
+  id          String        @id @default(uuid())
+  ownerId     String
+  year        Int
+  month       Int
+  totalAmount Int           @default(0)
+  status      BillingStatus @default(UNPAID)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  owner  Owner          @relation(fields: [ownerId], references: [id])
+  stores StoreBilling[]
+
+  @@unique([ownerId, year, month])
+  @@map("monthly_billings")
+}
+
+model StoreBilling {
+  id               String  @id @default(uuid())
+  monthlyBillingId String
+  placeId          String
+  planId           String?
+  amount           Int     @default(0)
+  active           Boolean @default(true)
+  note             String?
+
+  monthlyBilling MonthlyBilling @relation(fields: [monthlyBillingId], references: [id], onDelete: Cascade)
+  place          Place          @relation(fields: [placeId], references: [id])
+  plan           PricingPlan?   @relation(fields: [planId], references: [id])
+
+  @@map("store_billings")
+}
+
+// ─── Featured Pages ───
+
+model FeaturedPage {
+  id           String   @id @default(uuid())
+  title        String
+  url          String
+  displayOrder Int      @default(0)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("featured_pages")
+}
+
+// ─── Global Settings ───
+
+model GlobalSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("global_settings")
+}
+
+// ─── Articles ───
+
+model Article {
+  id             String               @id @default(uuid())
+  slug           String               @unique
+  type           ArticleType
+  published      Boolean              @default(false)
+  featured       Boolean              @default(false)
+  impactLevel    ImpactLevel?
+  newsCategory   NewsCategory?
+  sourceUrl      String?
+  seoTitle       String?
+  seoDescription String?
+  ogTitle        String?
+  ogImage        String?
+  canonicalUrl   String?
+  schemaType     String?              // Article, HowTo, FAQ
+  viewCount      Int                  @default(0)
+  publishedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  translations   ArticleTranslation[]
+  tags           ArticleTag[]
+
+  @@index([type, published])
+  @@map("articles")
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model ArticleTranslation {
+  id        String  @id @default(uuid())
+  articleId String
+  locale    String
+  title     String
+  content   String  @db.Text
+  excerpt   String?
+  coverUrl  String?
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, locale])
+  @@map("article_translations")
+}
+
+// ─── Community ───
+
+model CommunityPost {
+  id        String           @id @default(uuid())
+  title     String
+  content   String           @db.Text
+  authorId  String?
+  locale    String           @default("ja")
+  hidden    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  replies   CommunityReply[]
+  author    User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([hidden, createdAt])
+  @@map("community_posts")
+}
+
+model CommunityReply {
+  id        String        @id @default(uuid())
+  postId    String
+  content   String        @db.Text
+  authorId  String?
+  hidden    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+  @@map("community_replies")
+}
+
+// ─── Stations ───
+
+model Station {
+  id           String   @id @default(uuid())
+  name         String
+  line         String?  // BTS, MRT, ARL
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@map("stations")
+}
+
+// ─── Inquiries (掲載依頼) ───
+
+model Inquiry {
+  id        String        @id @default(uuid())
+  type      InquiryType
+  status    InquiryStatus @default(PENDING)
+  name      String
+  email     String
+  phone     String?
+  storeName String?
+  subject   String
+  message   String        @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@map("inquiries")
+}
+
+// ─── Jobs ───
+
+model Job {
+  id          String   @id @default(uuid())
+  company     String
+  title       String
+  category    String
+  location    String
+  url         String?
+  description String?  @db.Text
+  imageUrl    String?
+  placeId     String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  place       Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  @@index([active, createdAt])
+  @@map("jobs")
+}
+
+// ─── Curated Lists ───
+
+model CuratedList {
+  id           String             @id @default(uuid())
+  slug         String             @unique
+  title        String
+  description  String?            @db.Text
+  published    Boolean            @default(false)
+  displayOrder Int                @default(0)
+  seoTitle     String?
+  seoDescription String?
+  coverUrl     String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  places       CuratedListPlace[]
+
+  @@map("curated_lists")
+}
+
+model CuratedListPlace {
+  curatedListId String
+  placeId       String
+  order         Int          @default(0)
+  curatedList   CuratedList  @relation(fields: [curatedListId], references: [id], onDelete: Cascade)
+  place         Place        @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@id([curatedListId, placeId])
+  @@map("curated_list_places")
+}
+
+// ─── Media ───
+
+model Media {
+  id        String   @id @default(uuid())
+  url       String
+  filename  String
+  mimeType  String
+  size      Int
+  publicId  String?
+  createdAt DateTime @default(now())
+
+  @@map("media")
+}
+
+// ─── Custom Roles ───
+
+model CustomRole {
+  id          String           @id @default(uuid())
+  code        String           @unique // e.g. "ADMIN", "EDITOR", "CONTENT_MANAGER" — uppercase
+  name        String           // display name e.g. "コンテンツ管理者"
+  description String?          @db.Text
+  isSystem    Boolean          @default(false) // true for SUPER_ADMIN, ADMIN, EDITOR
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  permissions RolePermission[] // all permission rows for this role
+  adminUsers  AdminUser[]      // admin users assigned this custom role
+
+  @@map("custom_roles")
+}
+
+// ─── Role Permissions ───
+
+model RolePermission {
+  id         String     @id @default(uuid())
+  role       String     // FK to CustomRole.code
+  resource   String     // e.g. "stores", "articles", "revenue", "settings"
+  canView    Boolean    @default(false)
+  canCreate  Boolean    @default(false)
+  canEdit    Boolean    @default(false)
+  canDelete  Boolean    @default(false)
+
+  customRole CustomRole @relation(fields: [role], references: [code])
+
+  @@unique([role, resource])
+  @@map("role_permissions")
+}
+
+// ─── Q&A ───
+
+enum QaReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model QaQuestion {
+  id           String      @id @default(uuid())
+  slug         String      @unique
+  title        String
+  content      String      @db.Text
+  authorId     String?
+  hidden       Boolean     @default(false)
+  closed       Boolean     @default(false)
+  viewCount    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  author    User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  answers   QaAnswer[]
+  watches   QaWatch[]
+  reports   QaReport[]
+
+  @@index([hidden, createdAt])
+  @@map("qa_questions")
+}
+
+model QaAnswer {
+  id             String     @id @default(uuid())
+  questionId     String
+  parentId       String?    // for nested replies
+  content        String     @db.Text
+  authorId       String?
+  isBest         Boolean    @default(false)
+  isOldFlag      Boolean    @default(false)  // auto-flagged if > threshold months
+  hidden         Boolean    @default(false)
+  likeCount      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  question  QaQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  parent    QaAnswer?   @relation("AnswerReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   QaAnswer[]  @relation("AnswerReplies")
+  author    User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  likes     QaLike[]
+  reports   QaReport[]
+
+  @@index([questionId])
+  @@map("qa_answers")
+}
+
+model QaLike {
+  id       String   @id @default(uuid())
+  answerId String
+  userId   String
+  createdAt DateTime @default(now())
+
+  answer QaAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, userId])
+  @@map("qa_likes")
+}
+
+model QaWatch {
+  id         String   @id @default(uuid())
+  questionId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  question QaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+  @@map("qa_watches")
+}
+
+model QaReport {
+  id         String         @id @default(uuid())
+  questionId String?
+  answerId   String?
+  reporterId String?
+  reason     String
+  status     QaReportStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+
+  question QaQuestion? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer   QaAnswer?   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  reporter User?       @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("qa_reports")
+}
+
+// ─── Today Events ───
+
+model TodayEvent {
+  id           String   @id @default(uuid())
+  eventTime    String
+  area         String
+  title        String
+  description  String?  @db.Text
+  imageUrls    String[] @default([])
+  eventDate    DateTime @default(now()) @db.Date
+  active       Boolean  @default(true)
+  submittedBy  String?  // userId if submitted by public user
+  contactUrl   String?
+  lineId       String?
+  contactEmail String?
+  contactPhone String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([eventDate, active])
+  @@map("today_events")
+}
